@@ -1,40 +1,39 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const passport = require('passport');
-const config = require('./config');
+const express = require("express");
+const helmet = require("helmet");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+require("dotenv").config();
+const port = process.env.PORT;
+const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
+const passport = require("passport");
 
-// connect to the database and load models
-require('./server/models').connect(config.dbUri);
+require("./server/userRoutes")
+require("./server/userModel");
+require("./server/config/passport");
+const routes = require("./server/routes");
 
 const app = express();
-// tell the app to look for static files in these directories
-app.use(express.static('./server/static/'));
-app.use(express.static('./client/dist/'));
-// tell the app to parse HTTP body messages
+const mongoDB = process.env.MONGODB;
+
+mongoose.connect(process.env.MONGODB || "mongodb://localhost/User");
+mongoose.connection.on("error", err => {
+  console.error(err.message);
+});
+
+
+app.use(helmet());
+app.use(cors());
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-// pass the passport middleware
 app.use(passport.initialize());
 
-// load passport strategies
-const localSignupStrategy = require('./server/passport/local-signup');
-const localLoginStrategy = require('./server/passport/local-login');
-passport.use('local-signup', localSignupStrategy);
-passport.use('local-login', localLoginStrategy);
+app.use("/", routes);
 
-// pass the authenticaion checker middleware
-const authCheckMiddleware = require('./server/middleware/auth-check');
-app.use('/api', authCheckMiddleware);
+app.use((err, req, res, next) => {
+  res.status(500).json(err);
+});
 
-// routes
-const authRoutes = require('./server/routes/auth');
-const apiRoutes = require('./server/routes/api');
-app.use('/auth', authRoutes);
-app.use('/api', apiRoutes);
-
-// Set Port, hosting services will look for process.env.PORT
-app.set('port', (process.env.PORT || 3000));
-
-// start the server
-app.listen(app.get('port'), () => {
-  console.log(`Server is running on port ${app.get('port')}`);
+app.listen(port, () => {
+  console.log(`listening on port ${port}`);
 });
